@@ -1,7 +1,9 @@
 package com.jiawei.musicplayer
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,23 +16,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,12 +38,17 @@ import androidx.lifecycle.Observer
 import com.jiawei.musicplayer.model.Datasource
 import com.jiawei.musicplayer.model.MusicFile
 import com.jiawei.musicplayer.ui.theme.MusicPlayerTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class MainActivity : BaseActivity() {
 
     lateinit var data: Datasource
     val musicData = mutableStateListOf<MusicFile>()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         data = Datasource()
         super.onCreate(savedInstanceState)
@@ -51,6 +56,8 @@ class MainActivity : BaseActivity() {
             musicData.clear();
             musicData.addAll(data.loadMusicFiles())
         })
+
+        MusicPlayer.getMusicPlayer()?.init(this)
 
         setContent {
             MusicPlayerTheme {
@@ -71,16 +78,60 @@ class MainActivity : BaseActivity() {
 
 @Composable
 fun ListScreen(musicList: List<MusicFile>, modifier: Modifier = Modifier) {
+    val player = MusicPlayer.getMusicPlayer()
+    var isPlaying by remember { mutableStateOf(false) }
+    var music_cur: MusicFile? by remember { mutableStateOf(null) }
+    var progress by remember { mutableLongStateOf(0L) }
+    var job: Job? by remember { mutableStateOf(null) }
     Column {
-        MusicList(musicList, Modifier.fillMaxWidth().weight(1f))
-        MusicControlBar(Modifier.fillMaxWidth())
+        MusicList(
+            musicList,
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            playMusic(it)
+            music_cur = it
+            job = CoroutineScope(Dispatchers.Main).launch {
+                while (isActive) {
+                    delay(1000) // Update progress every second
+                    progress = player?.position() ?: 0L
+                    isPlaying = player?.isPlaying()?:false
+                }
+            }
+        }
+        MusicControlBar(
+            isPlaying = isPlaying,
+            music_cur = music_cur,
+            modifier = Modifier.fillMaxWidth(),
+            position = progress,
+            duration = player?.duration()?:0L,
+            onValueChange = {
+                progress = it
+                player?.seek(it)
+            },
+            onToggleClick = {
+                isPlaying = !isPlaying
+                if(!isPlaying) {
+                    player?.pause()
+                }else{
+                    player?.resume()
+                }
+            }
+        )
     }
 }
 
 @Composable
-fun MusicControlBar(modifier: Modifier = Modifier) {
-    var isPlay by remember { mutableStateOf(false) }
-    var music_current = MusicFile("", "music_01", "file://folder/my_music/", "mp3")
+fun MusicControlBar(
+    isPlaying: Boolean,
+    music_cur: MusicFile?,
+    modifier: Modifier = Modifier,
+    position: Long,
+    duration: Long,
+    onValueChange: (Long)->Unit,
+    onToggleClick: ()->Unit = {}
+) {
     Box(
         modifier = modifier
     ) {
@@ -91,7 +142,7 @@ fun MusicControlBar(modifier: Modifier = Modifier) {
             // music info
             Column (modifier = Modifier.weight(1f)) {
                 Text(
-                    text = music_current.filename,
+                    text = music_cur?.filename?:"",
                     fontSize = 15.sp
                 )
                 Text(
@@ -125,14 +176,16 @@ fun MusicControlBar(modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .width(50.dp)
                         .height(50.dp),
-                    onClick = { isPlay = !isPlay }
+                    onClick = {
+                        onToggleClick()
+                    }
                 ) {
 //                    Image(
 //                        painter = painterResource(id = android.R.drawable.ic_media_play),
 //                        contentDescription = "toggle_music"
 //                    )
                     var text = "P"
-                    if(isPlay) {
+                    if(isPlaying) {
                         text = "S"
                     }
                     Text(text = text, fontSize = 10.sp)
@@ -154,40 +207,56 @@ fun MusicControlBar(modifier: Modifier = Modifier) {
             }
         }
         // progress bar
-        ProgressBar()
+        ProgressBar(
+            position = position,
+            duration = duration,
+            onValueChange = onValueChange,
+            modifier = modifier
+        )
     }
 }
 
+@SuppressLint("UnrememberedMutableState")
 @Composable
-fun ProgressBar() {
-    LinearProgressIndicator(
-        progress = 0.5f,
-        color = Color.Yellow,
+fun ProgressBar(
+    position: Long,
+    duration: Long,
+    onValueChange: (Long)->Unit,
+    modifier: Modifier = Modifier
+) {
+    Slider(
+        value = position.toFloat(),
+        onValueChange = {
+            onValueChange(it.toLong())
+        },
+        valueRange = 0f..duration.toFloat(),
         modifier = Modifier
             .fillMaxWidth()
             .height(5.dp)
-            .clip(shape = RoundedCornerShape(5.dp))
     )
 }
 
 @Composable
-fun MusicList(musicList: List<MusicFile>, modifier: Modifier = Modifier) {
+fun MusicList(musicList: List<MusicFile>, modifier: Modifier = Modifier, onClick: (MusicFile) -> Unit) {
     LazyColumn(
         modifier = modifier
     ){
         items(musicList) {
-            music -> MusicItem(music)
+            music -> MusicItem(music, onClick = onClick)
         }
     }
 }
 
 @Composable
-fun MusicItem(music: MusicFile, modifier: Modifier = Modifier) {
+fun MusicItem(music: MusicFile, modifier: Modifier = Modifier, onClick: (MusicFile)->Unit = {}) {
     Column(modifier = modifier) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(25.dp, 5.dp, 10.dp, 5.dp)
+                .clickable {
+                    onClick(music)
+                }
         ) {
             Column {
                 // filename
@@ -211,12 +280,16 @@ fun MusicItem(music: MusicFile, modifier: Modifier = Modifier) {
     }
 }
 
+fun playMusic(music: MusicFile) {
+    MusicPlayer.getMusicPlayer()?.play(music.path)
+}
+
 @Preview(showBackground = true)
 @Composable
 fun ListItemPreview() {
     MusicPlayerTheme {
 //        MusicItem(MusicFile("music_01", "file://folder/my_music/", "mp3"))
 //        MusicList(Datasource().loadMusicFiles())
-        MusicControlBar()
+//        MusicControlBar()
     }
 }
