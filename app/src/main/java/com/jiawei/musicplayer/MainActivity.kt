@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.Observer
 import com.jiawei.musicplayer.data.AppContainer
 import com.jiawei.musicplayer.data.AppDataContainer
 import com.jiawei.musicplayer.model.Datasource

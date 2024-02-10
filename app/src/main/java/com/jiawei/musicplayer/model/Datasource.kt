@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 
 class Datasource(private val musicFilesRepository: MusicFilesRepository) : ViewModel() {
 
-    val list: MutableList<MusicFile> = mutableListOf()
     val musicLiveData = MutableLiveData<List<MusicFile>>()
     val mainScope = MainScope()
 
