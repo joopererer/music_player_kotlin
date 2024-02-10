@@ -24,7 +24,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +34,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Observer
+import com.jiawei.musicplayer.data.AppContainer
+import com.jiawei.musicplayer.data.AppDataContainer
 import com.jiawei.musicplayer.model.Datasource
 import com.jiawei.musicplayer.model.MusicFile
 import com.jiawei.musicplayer.ui.theme.MusicPlayerTheme
@@ -49,13 +50,16 @@ class MainActivity : BaseActivity() {
 
     lateinit var data: Datasource
     val musicData = mutableStateListOf<MusicFile>()
+    lateinit var container: AppContainer
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        data = Datasource()
+        container = AppDataContainer(this)
+        data = Datasource(container.musicFilesRepository)
         super.onCreate(savedInstanceState)
-        data.setObserver(this, Observer {
-            musicData.clear();
-            musicData.addAll(data.loadMusicFiles())
-        })
+        data.setObserver(this) {
+            musicData.clear()
+            musicData.addAll(data.loadMusicFiles() ?: listOf())
+        }
 
         MusicPlayer.getMusicPlayer()?.init(this)
 
@@ -81,7 +85,7 @@ fun ListScreen(musicList: List<MusicFile>, modifier: Modifier = Modifier) {
     val player = MusicPlayer.getMusicPlayer()
     var isPlaying by remember { mutableStateOf(false) }
     var music_cur: MusicFile? by remember { mutableStateOf(null) }
-    var progress by remember { mutableLongStateOf(0L) }
+    var progress by remember { mutableStateOf(0L) }
     var job: Job? by remember { mutableStateOf(null) }
     Column {
         MusicList(
