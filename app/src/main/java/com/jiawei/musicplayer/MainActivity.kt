@@ -3,6 +3,7 @@ package com.jiawei.musicplayer
 import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,9 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,9 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.jiawei.musicplayer.data.AppContainer
 import com.jiawei.musicplayer.data.AppDataContainer
 import com.jiawei.musicplayer.model.Datasource
@@ -66,7 +72,7 @@ class MainActivity : BaseActivity() {
             MusicPlayerTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    ListScreen(musicData)
+                    MainScreen(Modifier.fillMaxSize(), musicData, data.showLoading.value)
                 }
             }
         }
@@ -80,7 +86,24 @@ class MainActivity : BaseActivity() {
 }
 
 @Composable
-fun ListScreen(musicList: List<MusicFile>, modifier: Modifier = Modifier) {
+fun MainScreen(modifier: Modifier = Modifier, musicList: List<MusicFile>, isLoading: Boolean) {
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            Text(
+                modifier = Modifier
+                    .padding(10.dp, 5.dp, 10.dp, 5.dp),
+                text = "${musicList.size} music files found"
+            )
+        },
+    ) {
+        ListScreen(modifier.padding(it), musicList)
+        LoadingDialog(isLoading, "Scanning file ...")
+    }
+}
+
+@Composable
+fun ListScreen(modifier: Modifier = Modifier, musicList: List<MusicFile>) {
     val player = MusicPlayer.getMusicPlayer()
     var isPlaying by remember { mutableStateOf(false) }
     var music_cur: MusicFile? by remember { mutableStateOf(null) }
@@ -89,7 +112,7 @@ fun ListScreen(musicList: List<MusicFile>, modifier: Modifier = Modifier) {
     Column {
         MusicList(
             musicList,
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .weight(1f)
         ) {
@@ -256,30 +279,55 @@ fun MusicItem(music: MusicFile, modifier: Modifier = Modifier, onClick: (MusicFi
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(25.dp, 5.dp, 10.dp, 5.dp)
                 .clickable {
                     onClick(music)
                 }
         ) {
-            Column {
-                // filename
-                Text(text = music.filename)
-                // dir
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .padding(25.dp, 10.dp, 10.dp, 10.dp)
+            ) {
+                Column {
+                    // filename
+                    Text(text = music.filename)
+                    // dir
+                    Text(
+                        text = music.dir,
+                        fontSize = 10.sp
+                    )
+                }
+                // music type
                 Text(
-                    text = music.dir,
-                    fontSize = 10.sp
+                    text = music.type,
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 2.dp, end = 5.dp)
                 )
             }
-            // music type
-            Text(
-                text = music.type,
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 2.dp, end = 5.dp)
-            )
         }
         Divider()
+    }
+}
+
+@Composable
+fun LoadingDialog(isLoading: Boolean, message: String = "Loading...") {
+    if (isLoading) {
+        Dialog(onDismissRequest = { }) {
+            Box(
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(100.dp)
+                    .background(Color.White, shape = RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = message)
+                }
+            }
+        }
     }
 }
 
@@ -291,8 +339,10 @@ fun playMusic(music: MusicFile) {
 @Composable
 fun ListItemPreview() {
     MusicPlayerTheme {
-//        MusicItem(MusicFile("music_01", "file://folder/my_music/", "mp3"))
+        MainScreen(Modifier.fillMaxSize(), musicList = emptyList(), isLoading = false)
+//        MusicItem(MusicFile("file://folder/my_music/music_01.mp3"))
 //        MusicList(Datasource().loadMusicFiles())
 //        MusicControlBar()
+//        CircularProgressIndicator()
     }
 }

@@ -1,6 +1,8 @@
 package com.jiawei.musicplayer.model
 
 import android.util.Log
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
@@ -14,12 +16,19 @@ class Datasource(private val musicFilesRepository: MusicFilesRepository) : ViewM
 
     val musicLiveData = MutableLiveData<List<MusicFile>>()
     val mainScope = MainScope()
+    private val _showLoading = mutableStateOf(false)
+    val showLoading: State<Boolean> = _showLoading
 
     fun setObserver(owner: LifecycleOwner, observer: Observer<List<MusicFile>>) {
         musicLiveData.observe(owner, observer)
     }
 
+    fun setShowLoading(isShow: Boolean){
+        _showLoading.value = isShow
+    }
+
     fun scanFile() {
+        setShowLoading(true)
         loadData { files ->
             if (files.isEmpty()) {
                 // scan
@@ -28,10 +37,12 @@ class Datasource(private val musicFilesRepository: MusicFilesRepository) : ViewM
                     val musicFiles = toMusicFiles(it)
                     saveData(musicFiles)
                     musicLiveData.postValue(musicFiles)
+                    setShowLoading(false)
                 }
             }else{
                 // load direct
                 musicLiveData.postValue(files)
+                setShowLoading(false)
             }
         }
     }
@@ -55,19 +66,19 @@ class Datasource(private val musicFilesRepository: MusicFilesRepository) : ViewM
     private fun toMusicFiles(files: List<String>): List<MusicFile> {
         val filesList = mutableListOf<MusicFile>()
         for(file: String in files) {
-            filesList.add(toMusicFile(file))
+            filesList.add(MusicFile(file))
         }
         return filesList.toList()
     }
 
-    fun toMusicFile(file: String): MusicFile {
-        val index_folder = file.lastIndexOf('/')
-        val index_suffix = file.lastIndexOf('.')
-        val dir = file.substring(0, index_folder)
-        val type = file.substring(index_suffix+1)
-        val name = file.substring(index_folder+1, index_suffix)
-        return MusicFile(file, name, dir, type)
-    }
+//    fun toMusicFile(file: String): MusicFile {
+//        val index_folder = file.lastIndexOf('/')
+//        val index_suffix = file.lastIndexOf('.')
+//        val dir = file.substring(0, index_folder)
+//        val type = file.substring(index_suffix+1)
+//        val name = file.substring(index_folder+1, index_suffix)
+//        return MusicFile(file, name, dir, type)
+//    }
 
     fun loadMusicFiles(): List<MusicFile>? {
         return musicLiveData.value
