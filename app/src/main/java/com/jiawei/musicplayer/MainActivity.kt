@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,11 +22,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -35,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,15 +90,20 @@ class MainActivity : BaseActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(modifier: Modifier = Modifier, musicList: List<MusicFile>, isLoading: Boolean) {
     Scaffold(
         modifier = modifier,
         topBar = {
-            Text(
-                modifier = Modifier
-                    .padding(10.dp, 5.dp, 10.dp, 5.dp),
-                text = "${musicList.size} music files found"
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
+                title = {
+                    Text(text = "${musicList.size} music files found")
+                }
             )
         },
     ) {
@@ -111,10 +121,11 @@ fun ListScreen(modifier: Modifier = Modifier, musicList: List<MusicFile>) {
     var job: Job? by remember { mutableStateOf(null) }
     Column {
         MusicList(
-            musicList,
             modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .weight(1f),
+            musicList,
+            music_cur
         ) {
             playMusic(it)
             music_cur = it
@@ -127,14 +138,16 @@ fun ListScreen(modifier: Modifier = Modifier, musicList: List<MusicFile>) {
             }
         }
         MusicControlBar(
+            modifier = Modifier.fillMaxWidth(),
             isPlaying = isPlaying,
             music_cur = music_cur,
-            modifier = Modifier.fillMaxWidth(),
             position = progress,
             duration = player?.duration()?:0L,
             onValueChange = {
                 progress = it
-                player?.seek(it)
+            },
+            onValueChangeFinish = {
+                player?.seek(progress)
             },
             onToggleClick = {
                 isPlaying = !isPlaying
@@ -150,12 +163,13 @@ fun ListScreen(modifier: Modifier = Modifier, musicList: List<MusicFile>) {
 
 @Composable
 fun MusicControlBar(
+    modifier: Modifier = Modifier,
     isPlaying: Boolean,
     music_cur: MusicFile?,
-    modifier: Modifier = Modifier,
     position: Long,
     duration: Long,
     onValueChange: (Long)->Unit,
+    onValueChangeFinish: ()->Unit,
     onToggleClick: ()->Unit = {}
 ) {
     Box(
@@ -163,17 +177,21 @@ fun MusicControlBar(
     ) {
         Row(
             modifier = Modifier
-            .padding(10.dp, 15.dp, 10.dp, 10.dp)
+            .padding(10.dp, 25.dp, 10.dp, 10.dp)
         ) {
             // music info
-            Column (modifier = Modifier.weight(1f)) {
+            Column (
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 5.dp)
+            ) {
                 Text(
                     text = music_cur?.filename?:"",
-                    fontSize = 15.sp
+                    fontSize = 16.sp
                 )
                 Text(
                     text = "<artist>",
-                    fontSize = 12.sp
+                    fontSize = 13.sp
                 )
             }
 
@@ -232,11 +250,31 @@ fun MusicControlBar(
                 }
             }
         }
+        // time
+        Box (
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp, 8.dp, 5.dp, 0.dp)
+        ) {
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Left,
+                text = milliSecondsToTimeString(position),
+                fontSize = 15.sp
+            )
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.End,
+                text = milliSecondsToTimeString(duration),
+                fontSize = 15.sp
+            )
+        }
         // progress bar
         ProgressBar(
             position = position,
             duration = duration,
             onValueChange = onValueChange,
+            onValueChangeFinish = onValueChangeFinish,
             modifier = modifier
         )
     }
@@ -248,12 +286,16 @@ fun ProgressBar(
     position: Long,
     duration: Long,
     onValueChange: (Long)->Unit,
+    onValueChangeFinish: ()->Unit,
     modifier: Modifier = Modifier
 ) {
     Slider(
         value = position.toFloat(),
         onValueChange = {
             onValueChange(it.toLong())
+        },
+        onValueChangeFinished = {
+            onValueChangeFinish()
         },
         valueRange = 0f..duration.toFloat(),
         modifier = Modifier
@@ -263,18 +305,18 @@ fun ProgressBar(
 }
 
 @Composable
-fun MusicList(musicList: List<MusicFile>, modifier: Modifier = Modifier, onClick: (MusicFile) -> Unit) {
+fun MusicList(modifier: Modifier = Modifier, musicList: List<MusicFile>, currentMusic: MusicFile? = null, onClick: (MusicFile) -> Unit) {
     LazyColumn(
         modifier = modifier
     ){
         items(musicList) {
-            music -> MusicItem(music, onClick = onClick)
+            music -> MusicItem(music=music, isPlaying = (music==currentMusic), onClick = onClick)
         }
     }
 }
 
 @Composable
-fun MusicItem(music: MusicFile, modifier: Modifier = Modifier, onClick: (MusicFile)->Unit = {}) {
+fun MusicItem(modifier: Modifier = Modifier, music: MusicFile, isPlaying: Boolean, onClick: (MusicFile)->Unit = {}) {
     Column(modifier = modifier) {
         Box(
             modifier = Modifier
@@ -285,7 +327,7 @@ fun MusicItem(music: MusicFile, modifier: Modifier = Modifier, onClick: (MusicFi
         ) {
             Box(modifier = Modifier
                 .fillMaxWidth()
-                .padding(25.dp, 10.dp, 10.dp, 10.dp)
+                .padding(35.dp, 10.dp, 10.dp, 10.dp)
             ) {
                 Column {
                     // filename
@@ -304,6 +346,9 @@ fun MusicItem(music: MusicFile, modifier: Modifier = Modifier, onClick: (MusicFi
                         .align(Alignment.TopEnd)
                         .padding(top = 2.dp, end = 5.dp)
                 )
+            }
+            if(isPlaying) {
+                RandomJumpingSpectrum(Modifier.padding(7.dp).size(20.dp))
             }
         }
         Divider()
@@ -335,14 +380,34 @@ fun playMusic(music: MusicFile) {
     MusicPlayer.getMusicPlayer()?.play(music.path)
 }
 
+fun milliSecondsToTimeString(milliseconds: Long): String {
+    val totalSeconds = milliseconds / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+
+    return if (hours > 0) {
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun ListItemPreview() {
     MusicPlayerTheme {
-        MainScreen(Modifier.fillMaxSize(), musicList = emptyList(), isLoading = false)
+//        MainScreen(Modifier.fillMaxSize(), musicList = emptyList(), isLoading = false)
 //        MusicItem(MusicFile("file://folder/my_music/music_01.mp3"))
 //        MusicList(Datasource().loadMusicFiles())
-//        MusicControlBar()
+        val music = MusicFile("file://folder/my_music/music_01.mp3")
+        MusicControlBar(Modifier.fillMaxWidth(),false, music,0,1200,{}, {})
 //        CircularProgressIndicator()
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MusicItemPreview() {
+    MusicItem(music = MusicFile("file://folder/my_music/music_01.mp3"), isPlaying = true)
 }
