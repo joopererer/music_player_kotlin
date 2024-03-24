@@ -1,23 +1,24 @@
 package com.jiawei.musicplayer.model
 
 import android.util.Log
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
+import com.jiawei.musicplayer.core.MusicScanner
 import com.jiawei.musicplayer.data.MusicFilesRepository
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class Datasource(private val musicFilesRepository: MusicFilesRepository) : ViewModel() {
+class MusicListViewModel(private val musicFilesRepository: MusicFilesRepository) : ViewModel() {
 
     val musicLiveData = MutableLiveData<List<MusicFile>>()
     val mainScope = MainScope()
-    private val _showLoading = mutableStateOf(false)
-    val showLoading: State<Boolean> = _showLoading
+    private val _showLoading = MutableStateFlow(false)
+    val showLoading: StateFlow<Boolean> get() = _showLoading
 
     fun setObserver(owner: LifecycleOwner, observer: Observer<List<MusicFile>>) {
         musicLiveData.observe(owner, observer)
@@ -70,15 +71,6 @@ class Datasource(private val musicFilesRepository: MusicFilesRepository) : ViewM
         }
         return filesList.toList()
     }
-
-//    fun toMusicFile(file: String): MusicFile {
-//        val index_folder = file.lastIndexOf('/')
-//        val index_suffix = file.lastIndexOf('.')
-//        val dir = file.substring(0, index_folder)
-//        val type = file.substring(index_suffix+1)
-//        val name = file.substring(index_folder+1, index_suffix)
-//        return MusicFile(file, name, dir, type)
-//    }
 
     fun loadMusicFiles(): List<MusicFile>? {
         return musicLiveData.value

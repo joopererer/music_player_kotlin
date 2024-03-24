@@ -1,4 +1,4 @@
-package com.jiawei.musicplayer.model
+package com.jiawei.musicplayer.core
 
 import android.os.Environment
 import android.util.Log
@@ -7,7 +7,6 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.ArrayList
 
 class MusicScanner {
     val musics: MutableList<String> = ArrayList()

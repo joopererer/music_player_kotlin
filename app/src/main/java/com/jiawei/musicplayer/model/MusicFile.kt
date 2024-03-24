@@ -12,10 +12,16 @@ data class MusicFile(
     var dir: String
     var type: String
     init {
-        val index_folder = path.lastIndexOf('/')
-        val index_suffix = path.lastIndexOf('.')
-        dir = path.substring(0, index_folder)
-        type = path.substring(index_suffix+1)
-        filename = path.substring(index_folder+1, index_suffix)
+        if (!path.isEmpty()) {
+            val index_folder = path.lastIndexOf('/')
+            val index_suffix = path.lastIndexOf('.')
+            dir = path.substring(0, index_folder)
+            type = path.substring(index_suffix+1)
+            filename = path.substring(index_folder+1, index_suffix)
+        }else{
+            filename = ""
+            dir = ""
+            type = ""
+        }
     }
 }

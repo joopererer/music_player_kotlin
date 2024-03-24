@@ -1,29 +1,24 @@
-package com.jiawei.musicplayer
+package com.jiawei.musicplayer.core
 
-import android.content.Context
 import androidx.media3.common.C.TIME_UNSET
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import com.jiawei.musicplayer.MusicApp
 
 class MusicPlayer {
 
-    private lateinit var player: ExoPlayer
+    private val player: ExoPlayer by lazy {
+        ExoPlayer.Builder(MusicApp.getAppContext()).build()
+    }
 
     /***
      * Singleton
      */
     companion object {
-        var instance: MusicPlayer? = null
-        fun getMusicPlayer(): MusicPlayer? {
-            if (instance == null) {
-                instance = MusicPlayer()
-            }
-            return instance
-        }
+        fun getInstance() = Helper.instance
     }
-
-    fun init(context: Context) {
-        player = ExoPlayer.Builder(context).build()
+    private object Helper {
+        val instance = MusicPlayer()
     }
 
     fun release() {
